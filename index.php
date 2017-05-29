@@ -2,19 +2,38 @@
 
 require 'vendor/autoload.php';
 
-$params = array(
-    'host'     => 'localhost',
+$configuration = [
+    'site4Monitoring' => 'http://brovary-rada.gov.ua/documents/',
+];
+
+$params = [
+    'host' => 'localhost',
     'username' => 'test',
     'password' => 'test',
-    'dbname'   => 'test',
-    'charset'  => 'utf8',
-    '_debug'   => true,
-    '_prefix'  => 'p_',
-);
+    'dbname' => 'test',
+    'charset' => 'utf8',
+    '_debug' => true,
+    '_prefix' => 'p_',
+];
 
 $db = go\DB\DB::create($params, 'mysql');
 
+
+$client = new \GuzzleHttp\Client(
+    [
+        'base_uri' => $configuration['site4Monitoring'],
+        'headers' => [
+            'Content-Type' => 'application/json;charset=UTF-8',
+        ],
+        'timeout' => 30,
+        'verify' => true,
+    ]
+);
+
+
+
 $dispatcher = FastRoute\simpleDispatcher(function (FastRoute\RouteCollector $r) {
+    $r->addRoute('GET', '/cron/monitoring', 'cron/monitoring');
     $r->addRoute('GET', '/api/site/list', 'handler');
 });
 

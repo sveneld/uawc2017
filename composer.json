@@ -2,12 +2,13 @@
   "name": "SiteMonitoring",
   "description": "Monitoring sites for changes",
   "minimum-stability": "stable",
-  "license": "proprietary",
+  "license": "MIT",
   "require": {
     "php": "^5.4 || ^7.0",
     "guzzlehttp/guzzle": "6.2.3",
     "sebastian/diff": "1.4.3",
     "nikic/fast-route": "v1.2.0",
-    "go/db": "2.2.12"
+    "go/db": "2.2.12",
+    "shark/simple_html_dom": "dev-master"
   }
 }
