@@ -1,8 +1,8 @@
 <?php
 
-namespace uawc\SiteMonitoring;
+namespace uawc\Parser;
 
 interface LinkParserInterface
 {
-    public function parse();
+    public function parse($url);
 }

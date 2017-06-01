@@ -1,8 +1,11 @@
 <?php
 
-namespace uawc\SiteMonitoring;
+namespace uawc\Collector;
 
 interface LinkCollectorInterface
 {
+    /**
+     * @return string[]
+     */
     public function collect();
 }

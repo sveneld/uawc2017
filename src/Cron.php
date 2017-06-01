@@ -1,10 +1,14 @@
 <?php
 
-namespace uawc\SiteMonitoring;
+namespace uawc;
 
 use go\DB\DB;
 use GuzzleHttp\Client;
 use Psr\Log\LoggerInterface;
+use uawc\Collector\DummyLinkCollector;
+use uawc\Collector\LinkCollectorInterface;
+use uawc\Parser\DummyLinkParser;
+use uawc\Parser\LinkParserInterface;
 
 class Cron
 {
@@ -47,7 +51,10 @@ class Cron
 
     public function collectLinks()
     {
-        $sites = $this->db->query('SELECT * FROM sites WHERE `lastUpdateDate` > NOW() - INTERVAL 1 DAY LIMIT 10')->assoc();
+        $sites = $this->db->query(
+            'SELECT * FROM sites WHERE `lastUpdateDate` > ?string:lastUpdateDate LIMIT 10',
+            ['lastUpdateDate' => (new \DateTimeImmutable('1 day ago'))->format('Y-m-d H:i:s')]
+        )->assoc();
 
         foreach ($sites as $site) {
             $linkInfo = parse_url($site['link']);
@@ -62,18 +69,21 @@ class Cron
             foreach ($links as $link) {
                 $insertData[] = [
                     md5($link), //id
+                    $site['id'], //siteId
                     $link, //link
                     $addDate->format('Y-m-d H:i:s'), //adDdate
                     $updateAt->format('Y-m-d H:i:s'), //updateAt
                 ];
             }
-            $this->db->query(
-                'INSERT IGNORE INTO siteLinks (`id`, `link`, `adDdate`, `updateAt`) VALUES ?v',
-                [$insertData]
-            );
+            if (!empty($links)) {
+                $this->db->query(
+                    'INSERT OR IGNORE INTO siteLinks (`id`, `siteId`, `link`, `adDdate`, `updateAt`) VALUES ?values',
+                    [$insertData]
+                );
+            }
 
             $this->db->query(
-                'UPDATE sites set `lastUpdateDate` = NOW() WHERE `id` = ?string:id',
+                'UPDATE sites set `lastUpdatedAt` = DATETIME() WHERE `id` = ?string:id',
                 ['id' => $site['id']]
             );
         }
@@ -81,18 +91,39 @@ class Cron
 
     public function parseLinks()
     {
-        $links = $this->db->query('SELECT * FROM siteLinks WHERE `updateAt` < NOW() LIMIT 50')->assoc();
+        $links = $this->db->query('SELECT * FROM siteLinks WHERE `updateAt` < DATETIME() LIMIT 50')->assoc();
         foreach ($links as $link) {
             $linkInfo = parse_url($link['link']);
             $className = ucfirst(preg_replace('/[^\w]|www/', '', strtolower($linkInfo['host']))) . 'Parser';
             $linkParser = $this->createParserClass($className);
             $parseResult = $linkParser->parse();
 
-            $updateAt = $this->calculateNewUpdateDate($link['addDate']);
+            $version = $this->db->query(
+                'SELECT MAX(version) as version FROM siteLinkContent WHERE `siteLinkId` = ?string:siteLinkId',
+                ['siteLinkId' => $link['id']]
+            )->el();
+
+            $addDate = new \DateTimeImmutable();
+            $insertData = [
+                md5($version . $addDate->format('Y-m-d H:i:s') . $link['id']), //id
+                $link['id'], //siteLinkId
+                $parseResult['content'], //content
+                $addDate->format('Y-m-d H:i:s'), //adDdate
+                (int)$version + 1, //version
+            ];
+            $this->db->query(
+                'INSERT INTO siteLinkContent (`id`, `siteLinkId`, `content`, `adDdate`, `version`) VALUE ?v',
+                [$insertData]
+            );
+
+            $updateAt = $this->calculateNewUpdateAtDate(new \DateTimeImmutable($link['addDate']));
 
             $this->db->query(
-                'UPDATE sites set `lastUpdateDate` = NOW() WHERE `id` = ?string:id',
-                ['id' => $site['id']]
+                'UPDATE siteLinks set `updateAt` = ?string:updateAt WHERE `id` = ?string:id',
+                [
+                    'id' => $link['siteId'],
+                    'updateAt' => $updateAt->format('Y-m-d H:i:s'),
+                ]
             );
         }
     }
@@ -103,15 +134,16 @@ class Cron
      */
     private function createCollectorClass($className)
     {
-        if (isset($this->collectors[$className])) {
+        if (!isset($this->collectors[$className])) {
             if (class_exists($className)) {
                 $parser = new $className($this->curlClient, $this->parser);
             } else {
-                $parser = new DummyLinkParser();
+                $parser = new DummyLinkCollector();
                 $this->logger->error('Class ' . $className . ' does not exist');
             }
             $this->collectors[$className] = $parser;
         }
+
         return $this->collectors[$className];
     }
 
@@ -121,16 +153,36 @@ class Cron
      */
     private function createParserClass($className)
     {
-        if (isset($this->parser[$className])) {
+        if (!isset($this->parsers[$className])) {
             if (class_exists($className)) {
                 $parser = new $className($this->curlClient, $this->parser);
             } else {
                 $parser = new DummyLinkParser();
                 $this->logger->error('Class ' . $className . ' does not exist');
             }
-            $this->parser[$className] = $parser;
+            $this->parsers[$className] = $parser;
         }
-        return $this->parser[$className];
+
+        return $this->parsers[$className];
     }
 
+    /**
+     * @param \DateTimeImmutable $date
+     * @return \DateTimeImmutable
+     */
+    private function calculateNewUpdateAtDate(\DateTimeImmutable $date)
+    {
+        $daysDiff = $date->diff(new \DateTimeImmutable())->format('a');
+        if ($daysDiff < 7) {
+            $updateAt = $date->add(new \DateInterval('P1D'));
+        } elseif ($daysDiff < 14) {
+            $updateAt = $date->add(new \DateInterval('P5D'));
+        } elseif ($daysDiff < 30) {
+            $updateAt = $date->add(new \DateInterval('P30D'));
+        } else {
+            $updateAt = $date->add(new \DateInterval('P60D'));
+        }
+
+        return $updateAt;
+    }
 }

@@ -2,7 +2,7 @@
 
 namespace uawc\Collector;
 
-class DummyLinkCollector implements LinkCollectorInterface
+class BrovaryradagovuaCollector implements LinkCollectorInterface
 {
     /**
      * @inheritdoc

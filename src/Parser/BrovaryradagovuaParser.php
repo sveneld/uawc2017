@@ -1,8 +1,7 @@
 <?php
-
 namespace uawc\Parser;
 
-class DummyLinkParser implements LinkParserInterface
+class BrovaryradagovuaParser implements LinkParserInterface
 {
     public function parse($url)
     {

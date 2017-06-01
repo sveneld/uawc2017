@@ -1,6 +1,6 @@
 <?php
 
-namespace uawc\SiteMonitoring;
+namespace uawc;
 
 use go\DB\DB;
 
