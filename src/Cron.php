@@ -60,7 +60,7 @@ class Cron
             $linkInfo = parse_url($site['link']);
             $className = ucfirst(preg_replace('/[^\w]|www/', '', strtolower($linkInfo['host']))) . 'Collector';
 
-            $linkCollector = $this->createCollectorClass($className);
+            $linkCollector = $this->createCollectorClass(__NAMESPACE__ . '\\Collector\\' . $className);
             $links = $linkCollector->collect();
 
             $insertData = [];
@@ -71,7 +71,7 @@ class Cron
                     md5($link), //id
                     $site['id'], //siteId
                     $link, //link
-                    $addDate->format('Y-m-d H:i:s'), //adDdate
+                    $addDate->format('Y-m-d H:i:s'), //addDate
                     $updateAt->format('Y-m-d H:i:s'), //updateAt
                 ];
             }
@@ -83,7 +83,7 @@ class Cron
             }
 
             $this->db->query(
-                'UPDATE sites set `lastUpdatedAt` = DATETIME() WHERE `id` = ?string:id',
+                'UPDATE sites SET `lastUpdatedAt` = DATETIME() WHERE `id` = ?string:id',
                 ['id' => $site['id']]
             );
         }
@@ -95,11 +95,11 @@ class Cron
         foreach ($links as $link) {
             $linkInfo = parse_url($link['link']);
             $className = ucfirst(preg_replace('/[^\w]|www/', '', strtolower($linkInfo['host']))) . 'Parser';
-            $linkParser = $this->createParserClass($className);
+            $linkParser = $this->createParserClass(__NAMESPACE__ . '\\Parser\\' . $className);
             $parseResult = $linkParser->parse();
 
             $version = $this->db->query(
-                'SELECT MAX(version) as version FROM siteLinkContent WHERE `siteLinkId` = ?string:siteLinkId',
+                'SELECT MAX(version) AS version FROM siteLinkContent WHERE `siteLinkId` = ?string:siteLinkId',
                 ['siteLinkId' => $link['id']]
             )->el();
 
@@ -119,7 +119,7 @@ class Cron
             $updateAt = $this->calculateNewUpdateAtDate(new \DateTimeImmutable($link['addDate']));
 
             $this->db->query(
-                'UPDATE siteLinks set `updateAt` = ?string:updateAt WHERE `id` = ?string:id',
+                'UPDATE siteLinks SET `updateAt` = ?string:updateAt WHERE `id` = ?string:id',
                 [
                     'id' => $link['siteId'],
                     'updateAt' => $updateAt->format('Y-m-d H:i:s'),
@@ -136,7 +136,7 @@ class Cron
     {
         if (!isset($this->collectors[$className])) {
             if (class_exists($className)) {
-                $parser = new $className($this->curlClient, $this->parser);
+                $parser = new $className($this->curlClient, $this->parser, $this->logger);
             } else {
                 $parser = new DummyLinkCollector();
                 $this->logger->error('Class ' . $className . ' does not exist');
@@ -155,7 +155,7 @@ class Cron
     {
         if (!isset($this->parsers[$className])) {
             if (class_exists($className)) {
-                $parser = new $className($this->curlClient, $this->parser);
+                $parser = new $className($this->curlClient, $this->parser, $this->logger);
             } else {
                 $parser = new DummyLinkParser();
                 $this->logger->error('Class ' . $className . ' does not exist');
