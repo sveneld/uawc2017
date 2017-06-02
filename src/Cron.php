@@ -5,6 +5,7 @@ namespace uawc;
 use go\DB\DB;
 use GuzzleHttp\Client;
 use Psr\Log\LoggerInterface;
+use SebastianBergmann\Diff\Differ;
 use uawc\Collector\DummyLinkCollector;
 use uawc\Collector\LinkCollectorInterface;
 use uawc\Parser\DummyLinkParser;
@@ -25,6 +26,10 @@ class Cron
      */
     private $db;
     /**
+     * @var Differ
+     */
+    private $differ;
+    /**
      * @var LoggerInterface
      */
     private $logger;
@@ -41,11 +46,13 @@ class Cron
         \simple_html_dom $parser,
         Client $curlClient,
         DB $db,
+        Differ $differ,
         LoggerInterface $logger
     ) {
         $this->parser = $parser;
         $this->curlClient = $curlClient;
         $this->db = $db;
+        $this->differ = $differ;
         $this->logger = $logger;
     }
 
@@ -91,28 +98,40 @@ class Cron
 
     public function parseLinks()
     {
-        $links = $this->db->query('SELECT * FROM siteLinks WHERE `updateAt` < DATETIME() LIMIT 50')->assoc();
+        $links = $this->db->query('SELECT * FROM siteLinks WHERE `updateAt` < DATETIME() LIMIT 5')->assoc();
         foreach ($links as $link) {
             $linkInfo = parse_url($link['link']);
             $className = ucfirst(preg_replace('/[^\w]|www/', '', strtolower($linkInfo['host']))) . 'Parser';
             $linkParser = $this->createParserClass(__NAMESPACE__ . '\\Parser\\' . $className);
-            $parseResult = $linkParser->parse();
+            $content = $linkParser->parse($link['link']);
+            $version = 0;
 
-            $version = $this->db->query(
-                'SELECT MAX(version) AS version FROM siteLinkContent WHERE `siteLinkId` = ?string:siteLinkId',
+            $previousContent = $this->db->query(
+                'SELECT * FROM siteLinkContent WHERE `siteLinkId` = ?string:siteLinkId ORDER BY version DESC',
                 ['siteLinkId' => $link['id']]
-            )->el();
+            )->row();
+
+            if (!empty($previousContent)) {
+                $diff = $this->differ->diff($previousContent['content'], $content);
+                print_r($diff);
+                die();
+                if (empty($diff)) {
+                    continue;
+                }
+                $version = $previousContent['version'];
+            }
 
             $addDate = new \DateTimeImmutable();
-            $insertData = [
+            $insertData = [];
+            $insertData[] = [
                 md5($version . $addDate->format('Y-m-d H:i:s') . $link['id']), //id
                 $link['id'], //siteLinkId
-                $parseResult['content'], //content
+                $content, //content
                 $addDate->format('Y-m-d H:i:s'), //adDdate
                 (int)$version + 1, //version
             ];
             $this->db->query(
-                'INSERT INTO siteLinkContent (`id`, `siteLinkId`, `content`, `adDdate`, `version`) VALUE ?v',
+                'INSERT INTO siteLinkContent (`id`, `siteLinkId`, `content`, `adDdate`, `version`) VALUES ?v',
                 [$insertData]
             );
 

@@ -12,6 +12,7 @@ class BrovaryradagovuaCollector implements LinkCollectorInterface
 {
     const DOMAIN = 'http://brovary-rada.gov.ua';
     const PAGE_WITH_LINKS = 'http://brovary-rada.gov.ua/documents/';
+    const PAGE_PARSE_COUNT = 10;
 
     /**
      * @var \simple_html_dom
@@ -55,7 +56,7 @@ class BrovaryradagovuaCollector implements LinkCollectorInterface
             }
         };
 
-        $pool = new Pool($this->curlClient, $requests(10), [
+        $pool = new Pool($this->curlClient, $requests(self::PAGE_PARSE_COUNT), [
             'concurrency' => 5,
             'fulfilled' => function (Response $response, $index) {
                 $html = $this->parser->load($response->getBody()->getContents());

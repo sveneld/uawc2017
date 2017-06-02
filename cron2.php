@@ -173,6 +173,7 @@ $classLoader->register(true);
 use go\DB\DB;
 use GuzzleHttp\Client;
 use Psr\Log\NullLogger;
+use SebastianBergmann\Diff\Differ;
 
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
@@ -184,6 +185,6 @@ $params = array(
 );
 $db = DB::create($params, 'sqlite');
 
-$cron = new Cron(new \simple_html_dom(), new Client(), $db, new NullLogger());
+$cron = new Cron(new \simple_html_dom(), new Client(), $db, new Differ('', false), new NullLogger());
 
-$cron->collectLinks();
+$cron->parseLinks();
