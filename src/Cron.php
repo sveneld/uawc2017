@@ -18,6 +18,10 @@ class Cron
      */
     private $parser;
     /**
+     * @var \HTMLPurifier
+     */
+    private $purifier;
+    /**
      * @var Client
      */
     private $curlClient;
@@ -44,12 +48,14 @@ class Cron
 
     public function __construct(
         \simple_html_dom $parser,
+        \HTMLPurifier $purifier,
         Client $curlClient,
         DB $db,
         Differ $differ,
         LoggerInterface $logger
     ) {
         $this->parser = $parser;
+        $this->purifier = $purifier;
         $this->curlClient = $curlClient;
         $this->db = $db;
         $this->differ = $differ;
@@ -174,7 +180,7 @@ class Cron
     {
         if (!isset($this->parsers[$className])) {
             if (class_exists($className)) {
-                $parser = new $className($this->curlClient, $this->parser, $this->logger);
+                $parser = new $className($this->curlClient, $this->parser, $this->purifier, $this->logger);
             } else {
                 $parser = new DummyLinkParser();
                 $this->logger->error('Class ' . $className . ' does not exist');

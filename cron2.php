@@ -185,6 +185,13 @@ $params = array(
 );
 $db = DB::create($params, 'sqlite');
 
-$cron = new Cron(new \simple_html_dom(), new Client(), $db, new Differ('', false), new NullLogger());
+$config = \HTMLPurifier_Config::createDefault();
+$config->set('AutoFormat.AutoParagraph', true);
+$config->set('AutoFormat.RemoveSpansWithoutAttributes', true);
+$purifier = new \HTMLPurifier($config);
+
+
+
+$cron = new Cron(new \simple_html_dom(),  new \HTMLPurifier, new Client(), $db, new Differ('', false), new NullLogger());
 
 $cron->parseLinks();
