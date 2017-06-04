@@ -13,7 +13,6 @@ class API
     private $db;
     /**
      * @var Differ
-     *
      */
     private $differ;
 

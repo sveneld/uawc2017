@@ -48,7 +48,7 @@ class ImrgovuaParser implements LinkParserInterface
 
         $htmlContent = $this->parser->load($result->getBody()->getContents());
         $cleanContent = $htmlContent->find('div[itemprop="articleBody"]', 0);
-        $cleanContent = $cleanContent->innertext;
+        $cleanContent = trim($cleanContent->innertext);
 
         return $cleanContent;
     }
