@@ -104,7 +104,7 @@ class Cron
 
     public function parseLinks()
     {
-        $links = $this->db->query('SELECT * FROM siteLinks WHERE `updateAt` < DATETIME() LIMIT 5')->assoc();
+        $links = $this->db->query('SELECT * FROM siteLinks WHERE `updateAt` < DATETIME() LIMIT 10')->assoc();
         foreach ($links as $link) {
             $linkInfo = parse_url($link['link']);
             $className = ucfirst(preg_replace('/[^\w]|www/', '', strtolower($linkInfo['host']))) . 'Parser';
@@ -119,8 +119,6 @@ class Cron
 
             if (!empty($previousContent)) {
                 $diff = $this->differ->diff($previousContent['content'], $content);
-                print_r($diff);
-                die();
                 if (empty($diff)) {
                     continue;
                 }
@@ -135,9 +133,10 @@ class Cron
                 $content, //content
                 $addDate->format('Y-m-d H:i:s'), //adDdate
                 (int)$version + 1, //version
+                $content === LinkParserInterface::PARSE_RESULT_NOT_FOUND// isDeleted
             ];
             $this->db->query(
-                'INSERT INTO siteLinkContent (`id`, `siteLinkId`, `content`, `adDdate`, `version`) VALUES ?v',
+                'INSERT INTO siteLinkContent (`id`, `siteLinkId`, `content`, `adDdate`, `version`, `isDeleted`) VALUES ?v',
                 [$insertData]
             );
 

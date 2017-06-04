@@ -179,19 +179,19 @@ error_reporting(E_ALL);
 ini_set('display_errors', 1);
 set_time_limit(0);
 
-$params = array(
+$params = [
     'filename' => 'DB.sql',
     'mysql_quot' => true,
-);
+];
 $db = DB::create($params, 'sqlite');
 
-$config = \HTMLPurifier_Config::createDefault();
-$config->set('AutoFormat.AutoParagraph', true);
-$config->set('AutoFormat.RemoveSpansWithoutAttributes', true);
-$purifier = new \HTMLPurifier($config);
-
-
-
-$cron = new Cron(new \simple_html_dom(),  new \HTMLPurifier, new Client(), $db, new Differ('', false), new NullLogger());
+$cron = new Cron(
+    new \simple_html_dom(),
+    new \HTMLPurifier,
+    new Client(),
+    $db,
+    new Differ('', false),
+    new NullLogger()
+);
 
 $cron->parseLinks();

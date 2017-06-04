@@ -1,73 +1,77 @@
 <?php
 
+namespace uawc;
+
+use Composer\Autoload\ClassLoader;
+use FastRoute\simpleDispatcher;
+use FastRoute\Dispatcher;
+use FastRoute\RouteCollector;
+use go\DB\DB;
+use SebastianBergmann\Diff\Differ;
+use uawc\Cache\DummyCache;
+
 require 'vendor/autoload.php';
 
-$configuration = [
-    'site4Monitoring' => 'http://brovary-rada.gov.ua/documents/',
-];
+$classLoader = new ClassLoader();
+$classLoader->setPsr4("uawc\\", [__DIR__ . '/src']);
+$classLoader->register(true);
 
-$params = [
-    'host' => 'localhost',
-    'username' => 'test',
-    'password' => 'test',
-    'dbname' => 'test',
-    'charset' => 'utf8',
-    '_debug' => true,
-    '_prefix' => 'p_',
-];
-
-$db = go\DB\DB::create($params, 'mysql');
-
-
-$client = new \GuzzleHttp\Client(
+$db = DB::create(
     [
-        'base_uri' => $configuration['site4Monitoring'],
-        'headers' => [
-            'Content-Type' => 'application/json;charset=UTF-8',
-        ],
-        'timeout' => 30,
-        'verify' => true,
-    ]
+        'filename' => 'DB.sql',
+        'mysql_quot' => true,
+    ],
+    'sqlite'
 );
 
+$cache = new DummyCache();
 
-
-$dispatcher = FastRoute\simpleDispatcher(function (FastRoute\RouteCollector $r) {
-    $r->addRoute('GET', '/cron/monitoring', 'cron/monitoring');
-    $r->addRoute('GET', '/api/site/list', 'handler');
+$dispatcher = simpleDispatcher(function (RouteCollector $r) {
+    $r->addGroup('/api/site/', function (RouteCollector $r) {
+        $r->addRoute('GET', 'list', 'siteList');
+        $r->addRoute('GET', '{id}/link/list', 'linkList');
+        $r->addRoute('GET', '{id}/deleted/list', 'deletedLinkList');
+        $r->addRoute('GET', '{id}/modified/list', 'modifiedLinkList');
+    });
+    $r->addGroup('/api/link/', function (RouteCollector $r) {
+        $r->addRoute('GET', '{id}/version/list', 'linkVersionList');
+        $r->addRoute('GET', '{id}[/{version:[\d]}]', 'link');
+        $r->addRoute('GET', '{id}/diff/{versionFrom:[\d]}/{versionTo:[\d]}', 'linkDiff');
+    });
 });
 
-// Fetch method and URI from somewhere
 $httpMethod = $_SERVER['REQUEST_METHOD'];
 $uri = $_SERVER['REQUEST_URI'];
 
-// Strip query string (?foo=bar) and decode URI
 if (false !== $pos = strpos($uri, '?')) {
     $uri = substr($uri, 0, $pos);
 }
 $uri = rawurldecode($uri);
-
 $routeInfo = $dispatcher->dispatch($httpMethod, $uri);
 switch ($routeInfo[0]) {
-    case FastRoute\Dispatcher::NOT_FOUND:
-        // ... 404 Not Found
+    case Dispatcher::NOT_FOUND:
         header("HTTP/1.0 404 Not Found");
         echo "404 Not Found";
         exit();
         break;
-    case FastRoute\Dispatcher::METHOD_NOT_ALLOWED:
-        $allowedMethods = $routeInfo[1];
-        // ... 405 Method Not Allowed
+    case Dispatcher::METHOD_NOT_ALLOWED:
         header("HTTP/1.0 405 Method Not Allowed");
         echo "405 Method Not Allowed";
         exit();
         break;
-    case FastRoute\Dispatcher::FOUND:
+    case Dispatcher::FOUND:
         $handler = $routeInfo[1];
         $vars = $routeInfo[2];
+        $cacheKey = md5($handler.$vars);
 
-        $class = new \uawc\SiteMonitoring\API($db);
+        $response = $cache->get($cacheKey);
 
-        call_user_func_array([$class, $handler], $vars);
+        if (is_null($response)) {
+            $class = new API($db, new Differ('', false));
+            $response = call_user_func_array([$class, $handler], $vars);
+            $cache->save($cacheKey, $response);
+        }
+
+        echo $response;
         break;
 }
