@@ -3,12 +3,12 @@
 namespace uawc;
 
 use Composer\Autoload\ClassLoader;
-use FastRoute\simpleDispatcher;
 use FastRoute\Dispatcher;
 use FastRoute\RouteCollector;
 use go\DB\DB;
 use SebastianBergmann\Diff\Differ;
 use uawc\Cache\DummyCache;
+use function FastRoute\simpleDispatcher;
 
 require 'vendor/autoload.php';
 
