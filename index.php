@@ -27,6 +27,7 @@ $db = DB::create(
 $cache = new DummyCache();
 
 $dispatcher = simpleDispatcher(function (RouteCollector $r) {
+    $r->addRoute('GET', '/', 'help');
     $r->addGroup('/api/site/', function (RouteCollector $r) {
         $r->addRoute('GET', 'list', 'siteList');
         $r->addRoute('GET', '{id}/link/list', 'linkList');

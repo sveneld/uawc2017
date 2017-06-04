@@ -23,6 +23,22 @@ class API
         $this->differ = $differ;
     }
 
+    public function help()
+    {
+        echo '
+            Available actions:
+            <ul>
+                <li><a href="/api/site/list">Get all available sites</a> /api/site/list</li>
+                <li><a href="/api/site/{id}/link/list">Get all available site links</a> /api/site/{id}/link/list</li>
+                <li><a href="/api/site/{id}/deleted/list">Get all deleted site links</a> /api/site/{id}/deleted/list</li>
+                <li><a href="/api/site/{id}/modified/list">Get all modified site links</a> /api/site/{id}/modified/list</li>
+                <li><a href="/api/link/{id}/version/list">Get all link versions</a> /api/link/{id}/version/list</li>
+                <li><a href="/api/link/{id}[/{version:[\d]}]">Get provided or last version of link</a> /api/link/{id}[/{version:[\d]}]</li>
+                <li><a href="/api/link/{id}/diff/{versionFrom:[\d]}/{versionTo:[\d]}">Diff between version of</a> link/api/link/{id}/diff/{versionFrom:[\d]}/{versionTo:[\d]}</li>
+            </ul>
+        ';
+    }
+
     public function siteList()
     {
         $sites = $this->db->query('SELECT * FROM sites')->assoc();
