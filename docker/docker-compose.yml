@@ -1,0 +1,21 @@
+version: '2'
+
+services:
+  webserver-phpfpm:
+    build: ./containers/webserver/php-fpm
+    volumes:
+      - ./htdocs:/www
+      - ./containers/webserver/php-fpm/localetc:/usr/local/etc
+
+  webserver-nginx:
+    build: ./containers/webserver/nginx
+    mem_limit: 64m
+    privileged: true
+    volumes:
+      - ./htdocs:/www
+      - ./containers/webserver/nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./containers/webserver/nginx/project.conf:/etc/nginx/conf.d/www.conf
+    ports:
+      - "8080:80"
+    links:
+      - webserver-phpfpm
