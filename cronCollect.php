@@ -25,7 +25,7 @@ $cron = new Cron(
     new Client(),
     $db,
     new Differ('', false),
-    new NullLogger()
+    new Logger('uawc.log')
 );
 
 $cron->collectLinks();

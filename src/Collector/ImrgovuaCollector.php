@@ -69,7 +69,7 @@ class ImrgovuaCollector implements LinkCollectorInterface
                 unset($html);
             },
             'rejected' => function ($reason, $index) {
-                $this->logger->log(LogLevel::ERROR, 'Some Error during collecting links', compact('reason', 'index'));
+            $this->logger->error('Some Error during collecting links', compact('reason', 'index'));
             },
         ]);
 
